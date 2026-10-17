@@ -12,7 +12,11 @@ Docker-group membership grants root-equivalent host access. Persistent build wor
 
 ## Costs and prerequisites
 
-A Droplet accrues charges while retained, including while powered off; Spaces, snapshots, bandwidth and Buildkite hosted execution can add costs. Review current [Droplet pricing](https://www.digitalocean.com/pricing/droplets), [Spaces pricing](https://www.digitalocean.com/pricing/spaces-object-storage) and your Buildkite plan before approving deployment. Defaults are NYC3 and s-2vcpu-4gb, not a price guarantee.
+A Droplet accrues charges while retained, including while powered off; Spaces, snapshots, bandwidth and Buildkite hosted execution can add costs. Review current [Droplet pricing](https://www.digitalocean.com/pricing/droplets), [Spaces pricing](https://www.digitalocean.com/pricing/spaces-object-storage) and your Buildkite plan before approving deployment. The configurable default is **s-1vcpu-512mb-10gb in NYC1**: Basic Regular/shared CPU, 1 vCPU, 512 MiB RAM, 10 GiB SSD and 500 GiB transfer. DigitalOcean's official list price checked **2026-10-17** is **US$4/month maximum for the bundled Droplet plan** (listed hourly equivalent US$0.00595); taxes, Spaces/state storage, Buildkite charges, backups/snapshots and transfer overages are excluded. This is the cheapest listed Basic Regular plan, not a promise that your complete setup costs $4.
+
+[DigitalOcean's documented size catalog](https://docs.digitalocean.com/reference/ansible/reference/modules/sizes_info/) lists this slug in NYC1. This was verified from official documentation, not a live authenticated account-capacity query. Before deployment, check current availability with the read-only DigitalOcean sizes/regions API or doctl compute size list. The Spaces endpoint example remains NYC3 because the state bucket's location is independent of the Droplet.
+
+This default prioritizes low cost for light jobs. 512 MiB RAM and 10 GiB disk are tight even for installation and Docker image pulls; bootstrap and workloads have not been tested at this size. Bun/PostgreSQL/Chromium end-to-end jobs will likely need a larger size. Increase the configurable size only after observing requirements and approving the extra cost; the template never automatically selects a more expensive plan.
 
 Prepare:
 - A trusted provisioning agent with Bash, Terraform **1.16.6**, jq, and SOPS **3.10.2**. Install from official releases and verify signatures/checksums. Validation also needs Terraform and jq. The interactive setup helper needs Python 3.

@@ -2,8 +2,8 @@
 ssh_key_ids = ["REPLACE_EXISTING_KEY_ID"]
 ssh_cidrs   = ["203.0.113.10/32"]
 queue       = "linux-docker"
-region      = "nyc3"
-size        = "s-2vcpu-4gb"
+region      = "nyc1"
+size        = "s-1vcpu-512mb-10gb"
 apt_versions = {
   agent      = "REPLACE_EXACT_APT_VERSION"
   docker     = "REPLACE_EXACT_APT_VERSION"

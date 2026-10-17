@@ -16,11 +16,11 @@ variable "name" {
 }
 variable "region" {
   type    = string
-  default = "nyc3"
+  default = "nyc1"
 }
 variable "size" {
   type    = string
-  default = "s-2vcpu-4gb"
+  default = "s-1vcpu-512mb-10gb"
 }
 variable "ssh_key_ids" {
   type = list(string)
