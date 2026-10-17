@@ -69,7 +69,7 @@ resource "digitalocean_droplet" "agent" {
   monitoring = true
   ipv6       = false
   user_data = templatefile("${path.module}/bootstrap.sh.tftpl", {
-    queue = var.queue
+    queue    = var.queue
     versions = var.apt_versions
   })
 }
