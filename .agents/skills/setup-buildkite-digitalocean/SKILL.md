@@ -25,7 +25,7 @@ Default to a read-only readiness assessment until the user explicitly requests a
 As checked 2026-10-17, the [official MCP tool catalog](https://buildkite.com/docs/apis/mcp-server/tools) documents pipeline create/update, cluster create/update, self-hosted queue create/update, secret creation and build creation. Inspect actual tools and authorization first; do not assume these are exposed in your connection.
 
 - Organization/user/scope discovery: current_user, user_token_organization and access_token metadata. Never request or display the raw access token.
-- Pipelines: read_pipelines/write_pipelines; clusters and queues: read_clusters/write_clusters.
+- API token scopes (not tool names): pipelines use read_pipelines/write_pipelines; clusters and queues: read_clusters/write_clusters.
 - Agent reads: read_agents. Build creation: write_builds, used only after explicit run authorization.
 - Secret metadata: read_secrets_details; creation: write_secrets. Even if create_cluster_secret is exposed, do not transmit credential values through an ordinary agent tool call; use the secure operator handoff.
 - No documented agent-token management, GitHub repository integration/file-writing, or secret update/delete tool should be assumed. Those need separate supported service tools or operator action.
@@ -45,6 +45,8 @@ The target layout:
 - Cluster/queue access and secret policies enforced outside editable YAML. Queue tags and shell branch checks alone are not security isolation.
 
 The new Droplet must never be required to provision or destroy itself. If there is no existing trusted provisioning agent, explain the bootstrap dependency. Do not silently create a paid hosted queue or new host.
+
+Create a new deployment pipeline disabled/manual-only, including safe trigger settings in the initial creation where supported. If the available tool cannot establish or confirm those controls, hand off before creation/enabling rather than leaving a live intermediate configuration.
 
 After explicit setup authorization, use available supported MCP mutations for only the approved changes. Read back every mutation. Do not configure unrelated source-control webhooks, write team memberships, grant new access, or start a build as a side effect.
 
@@ -98,6 +100,8 @@ Report verified links and IDs for resources actually created or changed; disting
 
 ## Dry-run review cases (no external actions)
 
+- Missing organization/cluster choice: ask for it; do not select a sample or arbitrary account.
+- Existing pipeline name points elsewhere: stop for the owner decision; do not overwrite it.
 - No Buildkite MCP: explain missing capability; prepare an operator checklist, create nothing.
 - Read-only MCP: inspect existing resources, produce the minimal proposed changes, hand off unsupported mutations.
 - Matching pipeline already exists: reuse it; do not duplicate or overwrite unrelated settings.
