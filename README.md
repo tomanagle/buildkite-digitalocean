@@ -130,3 +130,17 @@ Disable new application jobs, drain and stop the agent, then use the separate tr
 - [Docker Ubuntu installation](https://docs.docker.com/engine/install/ubuntu/)
 - [SOPS documentation](https://getsops.io/docs/)
 - [SOPS 3.10.2 verification instructions](https://github.com/getsops/sops/releases/tag/v3.10.2)
+
+## Repository-local setup skill
+
+An agent that supports repository skills can use [.agents/skills/setup-buildkite-digitalocean/SKILL.md](.agents/skills/setup-buildkite-digitalocean/SKILL.md). [AGENTS.md](AGENTS.md) points agents to it. This is a setup guide, not a bundled MCP server, installed global skill, or guarantee that your client auto-discovers repository skills.
+
+Example request:
+
+    Use the setup-buildkite-digitalocean skill in this repository.
+    Inspect my connected Buildkite MCP and GitHub capabilities, then prepare
+    an idempotent setup plan for this repo. Ask for the missing organization,
+    cluster, queue and approver-team choices. Do not create credentials,
+    start builds or provision paid resources.
+
+If your client does not discover the skill, explicitly ask it to read that SKILL.md path and follow it. The guide checks actual tool availability, reuses matching resources, separates setup from deployment approval, and hands credential entry and host verification to the operator. Supported MCP mutations still require the corresponding user authorization; unsupported operations are documented handoffs. This source-only guide has not been tested against a connected Buildkite server.
