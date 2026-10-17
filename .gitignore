@@ -1,0 +1,13 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+!*.example
+backend.hcl
+.env
+*.pem
+crash.log
+secrets/*.plain.json
+.sops.yaml

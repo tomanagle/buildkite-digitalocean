@@ -1,0 +1,9 @@
+# Copy into a project pipeline. Host has no project-specific language toolchains.
+steps:
+  - label: "Container smoke test"
+    agents:
+      queue: "linux-docker"
+    command:
+      - "docker version"
+      - "docker compose version"
+      - "docker run --rm alpine:3.22.2 /bin/sh -c 'echo container-ready'"
