@@ -15,8 +15,13 @@ class ScriptTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = pathlib.Path(self.tmp.name)
-        for directory in ("scripts", ".buildkite", "infra"):
-            shutil.copytree(ROOT / directory, self.root / directory)
+        # Copy source fixtures only, never provider caches, state or local config.
+        sources = list((ROOT / "scripts").glob("*.sh"))
+        sources += [ROOT / ".buildkite/deploy.yml", ROOT / "infra/bootstrap.sh.tftpl"]
+        for source in sources:
+            target = self.root / source.relative_to(ROOT)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
 
     def setup_name(self, name):
         return subprocess.run(
