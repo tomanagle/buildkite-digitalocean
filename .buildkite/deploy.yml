@@ -12,7 +12,7 @@ steps:
     agents:
       queue: "provisioning"
     secrets:
-      SOPS_AGE_KEY: DIGITALOCEAN_BUILDKITE_SOPS_AGE_KEY
+      SOPS_AGE_KEY: "DIGITALOCEAN_BUILDKITE_SOPS_AGE_KEY"
     command: "bash scripts/infra.sh plan"
   - block: "Approve paid infrastructure"
     key: "approve"
@@ -27,5 +27,5 @@ steps:
     concurrency: 1
     concurrency_group: "buildkite-digitalocean/infra"
     secrets:
-      SOPS_AGE_KEY: DIGITALOCEAN_BUILDKITE_SOPS_AGE_KEY
+      SOPS_AGE_KEY: "DIGITALOCEAN_BUILDKITE_SOPS_AGE_KEY"
     command: "bash scripts/infra.sh apply"

@@ -10,10 +10,13 @@ case "${name,,}" in
   buildkite*|bk*) echo "Buildkite reserves names beginning buildkite or bk."; exit 1 ;;
 esac
 python3 - "$name" <<'PY'
-import pathlib, re, sys
+import json, pathlib, re, sys
 p = pathlib.Path(".buildkite/deploy.yml")
 text = p.read_text()
-text, count = re.subn(r"(?m)^(      SOPS_AGE_KEY: )[A-Za-z0-9_]+$", lambda m: m[1] + sys.argv[1], text)
+# JSON string encoding is also valid YAML double-quoted scalar syntax.
+# Match only our restricted unquoted or quoted secret-name values.
+pattern = r"""(?m)^(      SOPS_AGE_KEY: )(?:[A-Za-z0-9_]+|"[A-Za-z0-9_]+"|'[A-Za-z0-9_]+')$"""
+text, count = re.subn(pattern, lambda m: m[1] + json.dumps(sys.argv[1]), text)
 if count != 2:
     raise SystemExit("Expected two secret mappings; no changes written.")
 p.write_text(text)
