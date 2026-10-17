@@ -1,0 +1,31 @@
+# Configure a separate manual-only pipeline, trusted main branch and provisioning queue.
+# Do not enable push/PR triggers. Configure secret policies outside this file.
+steps:
+  - block: "Plan infrastructure"
+    key: "request"
+    prompt: "Confirm approved configuration, current DigitalOcean pricing and private state backend."
+  - label: "Terraform plan"
+    key: "plan"
+    depends_on: "request"
+    concurrency: 1
+    concurrency_group: "buildkite-digitalocean/infra"
+    agents:
+      queue: "provisioning"
+    secrets:
+      SOPS_AGE_KEY: DIGITALOCEAN_BUILDKITE_SOPS_AGE_KEY
+    command: "bash scripts/infra.sh plan"
+  - block: "Approve paid infrastructure"
+    key: "approve"
+    depends_on: "plan"
+    allowed_teams:
+      - "REPLACE_WITH_INFRA_APPROVER_TEAM_SLUG"
+    prompt: "Review the plan and costs. Apply recomputes and compares the plan, refusing changed plans and deletes/replacements. Cancel if not approved."
+  - label: "Terraform apply"
+    depends_on: "approve"
+    agents:
+      queue: "provisioning"
+    concurrency: 1
+    concurrency_group: "buildkite-digitalocean/infra"
+    secrets:
+      SOPS_AGE_KEY: DIGITALOCEAN_BUILDKITE_SOPS_AGE_KEY
+    command: "bash scripts/infra.sh apply"

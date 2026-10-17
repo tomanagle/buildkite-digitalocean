@@ -1,0 +1,6 @@
+# Separate pipeline and isolated queue. Never grant it deployment secrets.
+steps:
+  - label: "Validate source"
+    agents:
+      queue: "validation"
+    command: "bash scripts/validate.sh"

@@ -1,0 +1,69 @@
+#!/bin/bash
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+# No credentials belong in this script: DigitalOcean stores user-data.
+apt-get update
+apt-get install -y ca-certificates curl gnupg git
+install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable' > /etc/apt/sources.list.d/docker.list
+curl -fsSL https://keys.openpgp.org/vks/v1/by-fingerprint/32A37959C2FA5C3C99EFBC32A79206696452D198 |
+  gpg --dearmor --yes -o /etc/apt/keyrings/buildkite.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/buildkite.gpg] https://apt.buildkite.com/buildkite-agent stable main' > /etc/apt/sources.list.d/buildkite.list
+# Prevent package installation from starting an unconfigured agent.
+chmod 0644 /etc/apt/keyrings/docker.asc /etc/apt/keyrings/buildkite.gpg
+systemctl mask buildkite-agent.service
+apt-get update
+apt-get install -y 'buildkite-agent=${versions.agent}' 'docker-ce=${versions.docker}' 'docker-ce-cli=${versions.docker}' 'containerd.io=${versions.containerd}' 'docker-buildx-plugin=${versions.buildx}' 'docker-compose-plugin=${versions.compose}'
+usermod -aG docker buildkite-agent
+install -d -m 0755 /etc/systemd/system/buildkite-agent.service.d
+cat > /etc/buildkite-agent/buildkite-agent.cfg <<'CFG'
+name="%hostname"
+build-path="/var/lib/buildkite-agent/builds"
+hooks-path="/etc/buildkite-agent/hooks"
+plugins-path="/var/lib/buildkite-agent/plugins"
+tags="queue=${queue}"
+spawn=1
+CFG
+chown root:buildkite-agent /etc/buildkite-agent/buildkite-agent.cfg
+chmod 0640 /etc/buildkite-agent/buildkite-agent.cfg
+cat > /etc/systemd/system/buildkite-agent.service.d/override.conf <<'UNIT'
+[Unit]
+After=network-online.target docker.service
+Wants=network-online.target
+ConditionPathExists=/etc/buildkite-agent/credentials.env
+[Service]
+EnvironmentFile=/etc/buildkite-agent/credentials.env
+Restart=always
+RestartSec=10
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=infinity
+UNIT
+# Root-only interactive bootstrap: token never appears in arguments or shell history.
+cat > /usr/local/sbin/buildkite-set-token <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+set +x
+[[ "$EUID" -eq 0 ]] || { echo "Run as root"; exit 1; }
+[[ -t 0 ]] || { echo "Requires an interactive terminal"; exit 1; }
+systemctl stop buildkite-agent.service
+read -r -s -p "Buildkite agent registration token: " token
+printf '\n'
+[[ "$token" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "Unexpected token format"; exit 1; }
+umask 077
+tmp=$(mktemp /etc/buildkite-agent/.credentials.XXXXXX)
+trap 'rm -f "$tmp"' EXIT
+printf 'BUILDKITE_AGENT_TOKEN=%s\n' "$token" > "$tmp"
+unset token
+chown root:root "$tmp"
+chmod 0600 "$tmp"
+mv "$tmp" /etc/buildkite-agent/credentials.env
+systemctl enable --now buildkite-agent.service
+SCRIPT
+chmod 0700 /usr/local/sbin/buildkite-set-token
+systemctl unmask buildkite-agent.service
+systemctl daemon-reload
+systemctl disable buildkite-agent.service
+systemctl enable --now docker.service
+echo "Bootstrap complete. Agent remains stopped until root runs buildkite-set-token."
