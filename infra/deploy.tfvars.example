@@ -1,9 +1,9 @@
-# These are examples, not live credentials or valid deployment settings.
-ssh_key_ids = ["REPLACE_EXISTING_KEY_ID"]
-ssh_cidrs   = ["203.0.113.10/32"]
-queue       = "linux-docker"
-region      = "nyc1"
-size        = "s-1vcpu-512mb-10gb"
+# Non-secret deployment settings. Copy to deploy.tfvars and commit it.
+queue  = "linux-docker"
+region = "nyc1"
+size   = "s-1vcpu-512mb-10gb"
+# Set false after the agent is registered to close port 22 again.
+droplet_console = true
 apt_versions = {
   agent      = "REPLACE_EXACT_APT_VERSION"
   docker     = "REPLACE_EXACT_APT_VERSION"

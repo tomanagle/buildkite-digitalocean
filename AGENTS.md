@@ -12,4 +12,4 @@ rather than assuming a Buildkite MCP tool is installed.
 
 Never put credentials in source, cloud-init, Terraform variables/state, logs,
 chat or issue/PR text. The supported initial agent bootstrap is an operator
-handoff after independently verifying the new host's SSH identity.
+handoff through the authenticated DigitalOcean Droplet Console.

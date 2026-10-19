@@ -1,6 +1,6 @@
 ---
 name: setup-buildkite-digitalocean
-description: Guide an explicitly requested setup of this repository using available Buildkite MCP and GitHub tools, with capability discovery, idempotent configuration, SOPS credential handoffs and separate deployment approval.
+description: Guide an explicitly requested setup of this repository using available Buildkite MCP and GitHub tools, with capability discovery, idempotent configuration, Buildkite Secrets credential handoffs and separate deployment approval.
 ---
 
 # Set up Buildkite DigitalOcean
@@ -39,12 +39,12 @@ Present the smallest change set. Reuse matching resources. If a matching name po
 
 The target layout:
 - Validation pipeline: upload .buildkite/validate.yml on an isolated validation queue; no deployment secrets.
-- Manual infrastructure pipeline: upload .buildkite/deploy.yml on a pre-existing trusted provisioning queue, restricted to trusted main. Disable automatic push/PR deployment triggers.
+- Manual infrastructure pipeline: upload .buildkite/deploy.yml, restricted to trusted main. Its jobs run on the Buildkite hosted linux-small queue by default; scripts/tools.sh installs pinned, checksum-verified Terraform and jq. Disable automatic push/PR deployment triggers.
 - Application queue: linux-docker by default, populated by the new Droplet only after provisioning and token bootstrap.
-- Explicit approver-team slug in the approval block.
+- Explicit approver-team slug in the approval block (currently everyone; confirm it suits the org).
 - Cluster/queue access and secret policies enforced outside editable YAML. Queue tags and shell branch checks alone are not security isolation.
 
-The new Droplet must never be required to provision or destroy itself. If there is no existing trusted provisioning agent, explain the bootstrap dependency. Do not silently create a paid hosted queue or new host.
+The new Droplet must never be required to provision or destroy itself. If the cluster has no hosted Linux queue, explain that the deploy jobs need one (or another trusted agent) and ask before creating anything paid.
 
 Create a new deployment pipeline disabled/manual-only, including safe trigger settings in the initial creation where supported. If the available tool cannot establish or confirm those controls, hand off before creation/enabling rather than leaving a live intermediate configuration.
 
@@ -56,22 +56,25 @@ Require an executable environment and reviewed dependency installation. Run cred
 
 If the environment is unavailable, provide the precise blocker and keep the PR/pipeline readiness status as draft. Never report source inspection as a passed test. Do not dispatch paid provisioning to discover syntax errors.
 
-Review deployment guardrails: native state locking, no state/plan CI artifacts, no token in user-data, plan digest checked after approval, plan retry cannot replace the digest, no automatic delete/replacement, narrow SSH CIDRs, one worker, trusted Docker workloads only. Recognize the digest as a trusted-pipeline drift guard, not signed authorization or exact-binary-plan retention.
+Review deployment guardrails: native state locking, no state/plan CI artifacts, no token in user-data, plan digest checked after approval, plan retry cannot replace the digest, no automatic delete/replacement, SSH password logins disabled and port 22 open only while droplet_console is true, one worker, trusted Docker workloads only. Recognize the digest as a trusted-pipeline drift guard, not signed authorization or exact-binary-plan retention.
 
-## 4. Configure names without receiving secret values
+## 4. Configure settings and secrets without receiving secret values
 
-Run or explain bash scripts/setup.sh in the authorized workspace. It asks only for the Buildkite secret NAME used for the age identity and updates YAML mappings. Default: DIGITALOCEAN_BUILDKITE_SOPS_AGE_KEY. Buildkite names may use letters, digits and underscores (maximum 255 characters), but cannot begin with buildkite or bk, case-insensitively.
+Non-secret settings live in committed infra/deploy.tfvars and infra/backend.hcl, copied from their .example files: region, size, queue, droplet_console, exact apt versions and the state bucket. Fill them from verified reads, keep them free of credentials and REPLACE placeholders (scripts/infra.sh refuses both missing files and placeholders), and commit after review.
 
-The YAML secrets mapping must map the SOPS_AGE_KEY environment variable to the selected stored secret name. Do not replace it with an ordinary env mapping containing the literal name.
+.buildkite/deploy.yml maps three Buildkite Secrets into the plan and apply steps through the secrets mapping. Do not replace it with an ordinary env mapping:
+- DIGITALOCEAN_TOKEN -> DIGITALOCEAN_TOKEN
+- AWS_ACCESS_KEY_ID -> SPACES_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY -> SPACES_SECRET_ACCESS_KEY
+
+Buildkite secret names cannot begin with buildkite or bk, case-insensitively.
 
 Credential handoffs:
-- Operator creates/selects an age identity securely and sets its private value in Buildkite Secrets with restrictive pipeline/branch/agent access. Never request the private value in chat or call a tool with it.
-- Operator supplies the DigitalOcean API token and bucket-scoped Spaces access keys through secure tooling, then encrypts secrets/deploy.enc.json following README.md. Do not generate or configure persistent credentials without explicit action-time approval and the required secure handoff.
-- Keep public age recipient/configuration separate from the private key. Commit ciphertext only after reviewing staged changes. Never commit plaintext, .env, private keys, plans or state.
+- Operator creates the DigitalOcean token (custom scopes for Droplets and firewalls) and the bucket-scoped Spaces key, then enters each value in the Buildkite Secrets UI with restrictive pipeline/branch/agent access policies. Never request the values in chat or pass them through an ordinary agent tool call. Do not generate or configure persistent credentials without explicit action-time approval.
 - Agent registration token stays outside Terraform and is entered only during the verified-host bootstrap below.
 - Private Git checkout and registry access need separate least-privilege credentials; an agent registration token does not provide them.
 
-Check existence/permissions through nonsecret metadata only. Never print/decrypt secrets merely to prove they exist. SOPS plaintext is not automatically registered for Buildkite redaction. No debug/environment dumps.
+Check existence/permissions through nonsecret metadata only. Never print secrets merely to prove they exist. No debug/environment dumps.
 
 ## 5. Prepare state and deployment approval
 
@@ -86,13 +89,15 @@ If only setup was requested, stop after configuration/read-back and provide the 
 ## 6. Verified one-time agent bootstrap
 
 After separately approved provisioning:
-1. Operator verifies the intended Droplet's SSH host fingerprint through the authenticated DigitalOcean console.
-2. Add/trust the host key only after that match; never use StrictHostKeyChecking=no or trust ssh-keyscan alone.
-3. Operator connects with strict host verification, checks cloud-init completion and runs sudo /usr/local/sbin/buildkite-set-token.
-4. Operator enters the registration token at the hidden terminal prompt. Systemd reads the root-owned 0600 EnvironmentFile before dropping privileges. Do not put the token in command arguments, Terraform, cloud-init or chat.
-5. Use permitted read-only Buildkite tools to confirm the agent appears in the intended queue. Run a smoke build only when authorized.
+The Droplet has no SSH key. Its firewall opens port 22 to all addresses while droplet_console is true, because the Droplet Console has no published source range. Bootstrap disables SSH password and keyboard-interactive logins, so only the Droplet agent's short-lived keys work. DigitalOcean emails a root password that works only in the Recovery Console.
 
-Do not imply unattended SSH bootstrap is supported without an independently trusted host-identity mechanism and approved credential path.
+1. Operator opens the intended Droplet in the authenticated DigitalOcean UI and launches the Droplet Console as root.
+2. Operator checks cloud-init completion and runs /usr/local/sbin/buildkite-set-token.
+3. Operator enters the registration token at the hidden terminal prompt. Systemd reads the root-owned 0600 EnvironmentFile before dropping privileges. Do not put the token in command arguments, Terraform, cloud-init or chat.
+4. Use permitted read-only Buildkite tools to confirm the agent appears in the intended queue. Run a smoke build only when authorized.
+5. Offer to set droplet_console = false and redeploy through the reviewed pipeline to close port 22. That is an in-place firewall update and needs its own approval.
+
+Do not imply unattended bootstrap is supported; the token is always entered by the operator.
 
 ## 7. Completion report
 
@@ -109,5 +114,5 @@ Report verified links and IDs for resources actually created or changed; disting
 - Secret value pasted into an ordinary prompt: do not repeat/store it; route to secure handling and advise rotation if exposed.
 - Missing agent/Spaces bucket or current price above approval: stop for the specific decision; do not create paid prerequisites.
 - PR is untrusted, checksum lockfile missing, approver placeholder remains, or tests cannot run: deployment stays blocked.
-- Host key is unverified: token injection stays blocked even if the Droplet is running.
+- Droplet Console cannot connect: check droplet_console is true and the Droplet agent is running; fall back to the Recovery Console. Never re-enable SSH password logins.
 - Previously approved plan changes or plan job is rerun: require a fresh reviewed build.
