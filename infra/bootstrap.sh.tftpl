@@ -2,6 +2,16 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 # No credentials belong in this script: DigitalOcean stores user-data.
+# Port 22 is open for the Droplet Console, which uses short-lived keys from the
+# Droplet agent. Refuse passwords, including the emailed root password; that
+# password still works in the Recovery Console. 00- sorts before cloud-init's file.
+cat > /etc/ssh/sshd_config.d/00-buildkite-no-password.conf <<'SSHD'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin prohibit-password
+SSHD
+sshd -t
+systemctl restart ssh.service
 apt-get update
 apt-get install -y ca-certificates curl gnupg git
 install -d -m 0755 /etc/apt/keyrings

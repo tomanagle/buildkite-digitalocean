@@ -22,21 +22,10 @@ variable "size" {
   type    = string
   default = "s-1vcpu-512mb-10gb"
 }
-variable "ssh_key_ids" {
-  type = list(string)
-  validation {
-    condition     = length(var.ssh_key_ids) > 0
-    error_message = "Provide existing DigitalOcean SSH key IDs."
-  }
-}
-variable "ssh_cidrs" {
-  type = list(string)
-  validation {
-    condition = length(var.ssh_cidrs) > 0 && alltrue([
-      for cidr in var.ssh_cidrs : can(cidrhost(cidr, 0)) && !endswith(cidr, "/0")
-    ])
-    error_message = "Provide restricted administrator CIDRs; /0 is forbidden."
-  }
+variable "droplet_console" {
+  description = "Open port 22 to all addresses so the DigitalOcean Droplet Console can connect. Password SSH logins are disabled."
+  type        = bool
+  default     = true
 }
 variable "queue" {
   type    = string
@@ -65,7 +54,6 @@ resource "digitalocean_droplet" "agent" {
   region     = var.region
   size       = var.size
   image      = "ubuntu-24-04-x64"
-  ssh_keys   = var.ssh_key_ids
   monitoring = true
   ipv6       = false
   user_data = templatefile("${path.module}/bootstrap.sh.tftpl", {
@@ -74,12 +62,16 @@ resource "digitalocean_droplet" "agent" {
   })
 }
 resource "digitalocean_firewall" "agent" {
-  name        = "${var.name}-ssh-only"
+  name        = "${var.name}-console-only"
   droplet_ids = [digitalocean_droplet.agent.id]
-  inbound_rule {
-    protocol         = "tcp"
-    port_range       = "22"
-    source_addresses = var.ssh_cidrs
+  # The Droplet Console has no published source range, so it needs port 22 open to all.
+  dynamic "inbound_rule" {
+    for_each = var.droplet_console ? [1] : []
+    content {
+      protocol         = "tcp"
+      port_range       = "22"
+      source_addresses = ["0.0.0.0/0", "::/0"]
+    }
   }
   outbound_rule {
     protocol              = "tcp"

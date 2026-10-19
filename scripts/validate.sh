@@ -13,8 +13,11 @@ if [[ "${1:-}" == --shell-only ]]; then
   echo "All shell files passed syntax checks."
   exit 0
 fi
-python3 -m unittest discover -s tests -v
-terraform version -json | jq -e '.terraform_version == "1.16.6"' >/dev/null
+python3 -B -m unittest discover -s tests -v
+tmp=$(mktemp -d)
+trap 'rm -rf -- "$tmp"' EXIT
+source scripts/tools.sh
+ensure_tools "$tmp/bin"
 terraform -chdir=infra fmt -check
 terraform -chdir=infra init -backend=false -input=false
 terraform -chdir=infra validate

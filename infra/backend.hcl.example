@@ -1,3 +1,4 @@
+# No credentials here: Spaces keys come from Buildkite Secrets as AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY.
 bucket = "REPLACE-private-state-bucket"
 key    = "buildkite-agent/terraform.tfstate"
 region = "us-east-1"

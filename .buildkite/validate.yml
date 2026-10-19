@@ -2,5 +2,5 @@
 steps:
   - label: "Validate source"
     agents:
-      queue: "validation"
+      queue: "linux-small"
     command: "bash scripts/validate.sh"

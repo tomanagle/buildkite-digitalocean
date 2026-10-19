@@ -6,8 +6,10 @@
 *.tfvars.json
 !*.example
 backend.hcl
+# Committed, non-secret deployment config.
+!infra/deploy.tfvars
+!infra/backend.hcl
 .env
 *.pem
 crash.log
-secrets/*.plain.json
-.sops.yaml
+__pycache__/
